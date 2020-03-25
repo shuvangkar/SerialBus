@@ -18,7 +18,6 @@ class Serialbus
     void printbusBytes();
     uint8_t getFunctionCode();// return function Code if address matched |clear buffer if address not matches
     uint8_t availableBytes();
-    void svm(uint8_t *ptr,uint8_t dataSize);
     
     template <typename T_port>
     void begin(T_port* port, long baudRate);

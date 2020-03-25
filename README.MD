@@ -18,7 +18,11 @@ The purpose of the library is to build a common communication bus for multiple m
 - Master will send any type of instructions or data  to slave via instructions packet format 
 - Master requests data from slave via query packet format.
 
-### How Slave decode the master packet
- 1. Slave will first check total availabel bytes. 
- 2. If data length is 5 bytes, wait until buffer fill up time. After timeout check buffer again. If 5 bytes, slave consider this as query. If more than 5 bytes slave consider the packet as Instruction packet.
- 3. If packet length is more than 5 bytes, consider the packet as instructions.
+### Function Code Description
+|Function Code|Description|
+|:-----------:|:---------:|
+|0~9          |Reserved   |
+|10           |Master Sends multiple bytes to slave|
+|11           |Master Request Slave for Multiple Bytes|
+
+
