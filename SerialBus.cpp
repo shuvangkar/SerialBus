@@ -15,6 +15,8 @@
 #define sendMode()  digitalWrite(_dirPin,HIGH) //Transmit
 #define receiveMode() digitalWrite(_dirPin,LOW) //Receive
 
+
+/*************Setup Methods****************************/
 Serialbus::Serialbus(Stream &port, uint8_t slaveId)
 {
   this ->serialPort = &port;
@@ -27,7 +29,7 @@ void Serialbus::setDirectionPin(byte Pin)
   pinMode(_dirPin,OUTPUT);
   receiveMode();
 }
-
+/*************Low Level  Methods************************/
 void Serialbus::_transmitBuffer(byte *ptr,byte size)
 {
   //High/low MAX485 pins for transmit
@@ -61,66 +63,21 @@ uint8_t Serialbus::availableBytes()
   //return length;
 }
 
-byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
+
+void Serialbus::_clearBuffer()
 {
-  byte ctrlByte[5];
-  ctrlByte[0] = sizeof(ctrlByte);
-  ctrlByte[1] = slaveId;
-  ctrlByte[2] = FunCode;
-  ctrlByte[3] = 0;
-  ctrlByte[4] = 0; //Control bytes
-  //_printBuffer(ctrlByte,sizeof(ctrlByte));
-  this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
-  debugPrint(F("Query Request ID : "));debugPrintln(slaveId);
-  uint16_t timeout = 5000;
-  byte rcvLen = 0;
-  do
+  //byte len = serialPort->available();
+  _bufReadOnce = false;
+  _FunctionCode = 0;
+  payloadLength = 0;
+  while (serialPort->available())
   {
-    rcvLen = this -> availableBytes();
-    //rcvLen = serialPort -> available();
-    //debugPrint(F("Available : "));debugPrintln(rcvLen);
-    if(rcvLen > 0)
-    {
-      //debugPrint(F("Available : "));debugPrintln(rcvLen);
-      rcvLen = getPayload(rcvPtr,slaveId);
-      //this->printbusBytes();
-      //return rcvLen;
-      this -> _clearBuffer();
-    }
-    delay(1);
-  }while(--timeout && !rcvLen);
-  return rcvLen;
+    serialPort->read();
+  }
+  debugPrintln(F("buffer Cleared"));
 }
 
-uint8_t Serialbus::getFunctionCode()
-{
-  byte len =   this -> availableBytes();
-  if(len>0)
-  {
-    //check if master inquires this slave
-    if(_bufReadOnce == false)
-    {
-      byte packetLen = serialPort -> read();
-      byte id = serialPort ->read();
-      if(id == _slaveId)
-      {
-        debugPrintln(F("Address Matched"));
-        this -> _FunctionCode = serialPort ->read();
-        this->payloadLength = packetLen;
-        _bufReadOnce = true;
-      }
-      else
-      {
-        //This is not me. clear buffer
-        debugPrintln(F("Address Not Matched"));
-        this->payloadLength = 0;
-        this ->_clearBuffer();
-      }
-    }
-    
-  }
-  return _FunctionCode;
-}
+/************************Common Methods***************************/
 void Serialbus::response(byte *dataPtr,byte  dataLen)
 {
   debugPrint(F("Responding : "));debugPrintln(_FunctionCode);
@@ -131,7 +88,7 @@ void Serialbus::response(byte *dataPtr,byte  dataLen)
   buffer[2] = _FunctionCode;
   buffer[3] = 0;
   memcpy(buffer+4,dataPtr,dataLen);
-  _printBuffer(buffer,packetLen);
+  printBuffer(buffer,packetLen);
   this -> _transmitBuffer(buffer,packetLen);
   this -> _clearBuffer();
 
@@ -140,9 +97,9 @@ void Serialbus::response(byte *dataPtr,byte  dataLen)
   // ctrlByte[1] = _slaveId;
   // ctrlByte[2] = _FunctionCode;
   // ctrlByte[3] = 0;
-  // _printBuffer(ctrlByte,sizeof(ctrlByte));
+  // printBuffer(ctrlByte,sizeof(ctrlByte));
   // this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
-  // _printBuffer(dataPtr,dataLen);
+  // printBuffer(dataPtr,dataLen);
   // this -> _transmitBuffer(dataPtr,dataLen);
   // this -> _clearBuffer();
 
@@ -157,6 +114,7 @@ void Serialbus::response(byte *dataPtr,byte  dataLen)
   this ->clearBuffer();//clear buffer for accidental byte ramaining
   */
 }
+
 byte  Serialbus::getPayload(byte *dataPtr, byte SlaveID)
 {
   //Checksum here, then proceed to the 
@@ -191,19 +149,75 @@ byte  Serialbus::getPayload(byte *dataPtr, byte SlaveID)
 
 }
 
-void Serialbus::_clearBuffer()
+/********************Master Device Methods***********************/
+
+byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
 {
-  //byte len = serialPort->available();
-  _bufReadOnce = false;
-  _FunctionCode = 0;
-  payloadLength = 0;
-  while (serialPort->available())
+  //this -> _clearBuffer();
+  byte ctrlByte[5];
+  ctrlByte[0] = sizeof(ctrlByte);
+  ctrlByte[1] = slaveId;
+  ctrlByte[2] = FunCode;
+  ctrlByte[3] = 0;
+  ctrlByte[4] = 0; //Control bytes
+  //printBuffer(ctrlByte,sizeof(ctrlByte));
+  this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
+  debugPrint(F("Query Request ID : "));debugPrintln(slaveId);
+  uint16_t timeout = 5000;
+  byte rcvLen = 0;
+  do
   {
-    serialPort->read();
-  }
-  debugPrintln(F("buffer Cleared"));
+    rcvLen = this -> availableBytes();
+    //rcvLen = serialPort -> available();
+    //debugPrint(F("Available : "));debugPrintln(rcvLen);
+    if(rcvLen > 0)
+    {
+      //debugPrint(F("Available : "));debugPrintln(rcvLen);
+      rcvLen = getPayload(rcvPtr,slaveId);
+      //this->printbusBytes();
+      //return rcvLen;
+     
+    }
+    delay(1);
+  }while(--timeout && !rcvLen);
+  this -> _clearBuffer();
+  return rcvLen;
 }
 
+/*******************Slave Methods******************************/
+uint8_t Serialbus::getFunctionCode()
+{
+  byte len =   this -> availableBytes();
+  if(len>0)
+  {
+    //check if master inquires this slave
+    if(_bufReadOnce == false)
+    {
+      byte packetLen = serialPort -> read();
+      byte id = serialPort ->read();
+      if(id == _slaveId)
+      {
+        debugPrintln(F("Address Matched"));
+        this -> _FunctionCode = serialPort ->read();
+        this->payloadLength = packetLen;
+        _bufReadOnce = true;
+      }
+      else
+      {
+        //This is not me. clear buffer
+        debugPrintln(F("Address Not Matched"));
+        this->payloadLength = 0;
+        this ->_clearBuffer();
+      }
+    }
+    
+  }
+  return _FunctionCode;
+}
+
+
+
+/**********************Debug Methods******************/
 void Serialbus::printbusBytes()
 {
   byte len = serialPort->available();
@@ -217,7 +231,7 @@ void Serialbus::printbusBytes()
     Serial.println();
   }
 }
-void Serialbus::_printBuffer(byte *ptr,byte size)
+void Serialbus::printBuffer(byte *ptr,byte size)
 {
   for(byte i = 0; i<size; i++)
   {

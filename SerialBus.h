@@ -15,32 +15,33 @@ class Serialbus
   public:
     Serialbus(Stream &port, uint8_t slaveId);
     void setDirectionPin(byte Pin);
-    void printbusBytes();
-    uint8_t getFunctionCode();// return function Code if address matched |clear buffer if address not matches
-    uint8_t availableBytes();
-    
+
     template <typename T_port>
     void begin(T_port* port, long baudRate);
     
     void response(byte *dataPtr,byte  dataLen);
     byte getPayload(byte *dataPtr, byte SlaveID);
+
+
+    uint8_t getFunctionCode();
     byte query(byte slaveId,byte FunCode,byte *rcvPtr);
 
-    byte *dataPtr;
+    void printbusBytes();
+    void printBuffer(byte *ptr,byte size);
 
+    //byte *dataPtr;
     uint8_t _slaveId;
     byte payloadLength;
-
-     void _transmitBuffer(byte *ptr,byte size);
-     void _testRx();
-     void _printBuffer(byte *ptr,byte size);
   private:
     Stream *serialPort;
+   
     uint8_t _dirPin;
     bool _bufReadOnce = false;
     byte _FunctionCode;
 
-
+    uint8_t availableBytes();
+    void _transmitBuffer(byte *ptr,byte size);
+    void _testRx();
     void _clearBuffer();
     
    
