@@ -47,9 +47,9 @@ void Serialbus::_testRx()
 uint8_t Serialbus::availableBytes()
 {
   byte length = serialPort -> peek();
-  debugPrint(F("peek : "));debugPrint(length);
+  //debugPrint(F("peek : "));debugPrint(length);
   byte rcvBytes = serialPort ->available();
-  debugPrint(F(" | Actual : "));debugPrintln(rcvBytes);
+  //debugPrint(F(" | Actual : "));debugPrintln(rcvBytes);
   if(rcvBytes>=length)
   {
     return length;
@@ -71,8 +71,8 @@ byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
   ctrlByte[4] = 0; //Control bytes
   //_printBuffer(ctrlByte,sizeof(ctrlByte));
   this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
-  debugPrintln(F("Query Sent"));
-  uint16_t timeout = 2000;
+  debugPrint(F("Query Request ID : "));debugPrintln(slaveId);
+  uint16_t timeout = 5000;
   byte rcvLen = 0;
   do
   {
@@ -85,8 +85,9 @@ byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
       rcvLen = getPayload(rcvPtr,slaveId);
       //this->printbusBytes();
       //return rcvLen;
+      this -> _clearBuffer();
     }
-    //delay(1);
+    delay(1);
   }while(--timeout && !rcvLen);
   return rcvLen;
 }
