@@ -11,9 +11,9 @@ The purpose of the library is to build a common communication bus for multiple m
 |:------------:|:-----------:|:-----:|:----------:|:-----:|:-------|
 | 1 Byte       | 1 Byte      | 1 Byte| 1 Byte     |n byte |1 byte  |
 ### Query
-| Slave Address|Function Code|Control|Payload|Checksum|
-|:------------:|:-----------:|:-----:|:-----:|:------- |
-| 1 Byte       | 1 Byte      | 1 Byte|n byte |1 byte  |
+|Packet Length |Slave ID     |Function Code|Control Byte|Checksum|
+|:------------:|:-----------:|:-----------:|:----------:|:-------|
+| 1 Byte       | 1 Byte      | 1 Byte      |1 byte      |1 byte  |
 
 - Master will send any type of instructions or data  to slave via instructions packet format 
 - Master requests data from slave via query packet format.

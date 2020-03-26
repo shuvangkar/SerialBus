@@ -9,7 +9,7 @@
 #define debugPrintln(...)  __VA_ARGS__
 #endif
 
-
+#define MAX_RX_BUFFER (byte)64
 #define QUERY_TIMEOUT (uint32_t)2000
 
 #define sendMode()  digitalWrite(_dirPin,HIGH) //Transmit
@@ -37,10 +37,19 @@ void Serialbus::_transmitBuffer(byte *ptr,byte size)
   receiveMode();
 }
 
+void Serialbus::_testRx()
+{
+  receiveMode();
+  while(!serialPort -> available());
+  printbusBytes();
+}
+
 uint8_t Serialbus::availableBytes()
 {
   byte length = serialPort -> peek();
+  debugPrint(F("peek : "));debugPrint(length);
   byte rcvBytes = serialPort ->available();
+  debugPrint(F(" | Actual : "));debugPrintln(rcvBytes);
   if(rcvBytes>=length)
   {
     return length;
@@ -50,6 +59,36 @@ uint8_t Serialbus::availableBytes()
     return 0; 
   }
   //return length;
+}
+
+byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
+{
+  byte ctrlByte[5];
+  ctrlByte[0] = sizeof(ctrlByte);
+  ctrlByte[1] = slaveId;
+  ctrlByte[2] = FunCode;
+  ctrlByte[3] = 0;
+  ctrlByte[4] = 0; //Control bytes
+  //_printBuffer(ctrlByte,sizeof(ctrlByte));
+  this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
+  debugPrintln(F("Query Sent"));
+  uint16_t timeout = 2000;
+  byte rcvLen = 0;
+  do
+  {
+    rcvLen = this -> availableBytes();
+    //rcvLen = serialPort -> available();
+    //debugPrint(F("Available : "));debugPrintln(rcvLen);
+    if(rcvLen > 0)
+    {
+      //debugPrint(F("Available : "));debugPrintln(rcvLen);
+      rcvLen = getPayload(rcvPtr,slaveId);
+      //this->printbusBytes();
+      //return rcvLen;
+    }
+    //delay(1);
+  }while(--timeout && !rcvLen);
+  return rcvLen;
 }
 
 uint8_t Serialbus::getFunctionCode()
@@ -66,14 +105,13 @@ uint8_t Serialbus::getFunctionCode()
       {
         debugPrintln(F("Address Matched"));
         this -> _FunctionCode = serialPort ->read();
-        this->payloadLength = packetLen-3;
+        this->payloadLength = packetLen;
         _bufReadOnce = true;
       }
       else
       {
         //This is not me. clear buffer
         debugPrintln(F("Address Not Matched"));
-        this->payloadLength = 0;
         this->payloadLength = 0;
         this ->_clearBuffer();
       }
@@ -82,10 +120,82 @@ uint8_t Serialbus::getFunctionCode()
   }
   return _FunctionCode;
 }
+void Serialbus::response(byte *dataPtr,byte  dataLen)
+{
+  debugPrint(F("Responding : "));debugPrintln(_FunctionCode);
+  uint8_t buffer[MAX_RX_BUFFER];
+  byte packetLen = dataLen+4;
+  buffer[0] = packetLen;
+  buffer[1] = _slaveId;
+  buffer[2] = _FunctionCode;
+  buffer[3] = 0;
+  memcpy(buffer+4,dataPtr,dataLen);
+  _printBuffer(buffer,packetLen);
+  this -> _transmitBuffer(buffer,packetLen);
+  this -> _clearBuffer();
+
+  // byte ctrlByte[4];
+  // ctrlByte[0] = dataLen+ sizeof(ctrlByte);
+  // ctrlByte[1] = _slaveId;
+  // ctrlByte[2] = _FunctionCode;
+  // ctrlByte[3] = 0;
+  // _printBuffer(ctrlByte,sizeof(ctrlByte));
+  // this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
+  // _printBuffer(dataPtr,dataLen);
+  // this -> _transmitBuffer(dataPtr,dataLen);
+  // this -> _clearBuffer();
+
+/*
+  uint8_t buffer[MAX_RX_BUFFER];
+  buffer[0] = slaveId;
+  buffer[1] = _funCode;
+  buffer[2] = dataLen;// If calculate crc add 2 bytes more here
+  memcpy(buffer+3,dataPtr,dataLen);
+  printBuffer(buffer,dataLen+3);
+  this -> _transmitBuffer(buffer,dataLen+3);
+  this ->clearBuffer();//clear buffer for accidental byte ramaining
+  */
+}
+byte  Serialbus::getPayload(byte *dataPtr, byte SlaveID)
+{
+  //Checksum here, then proceed to the 
+
+  byte ctrlByte[4];
+  byte temp;
+  for(byte i = 0; i<4; i++)
+  {
+    /*
+    byte 0->Packet Length
+    byte 1->Slave Address
+    byte 2->Function Code
+    byte 3-> Control Code
+    */
+    ctrlByte[i] = serialPort -> read();
+  }
+
+  if(ctrlByte[1] == SlaveID)
+  {
+    byte  packetLen = ctrlByte[0] - 4;
+    for (byte i = 0; i < packetLen; ++i)
+    {
+      *(dataPtr+i) = serialPort -> read();
+    }
+
+    return packetLen;
+  }
+  else
+  {
+    return 0;
+  }
+
+}
 
 void Serialbus::_clearBuffer()
 {
   //byte len = serialPort->available();
+  _bufReadOnce = false;
+  _FunctionCode = 0;
+  payloadLength = 0;
   while (serialPort->available())
   {
     serialPort->read();

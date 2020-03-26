@@ -23,13 +23,17 @@ class Serialbus
     void begin(T_port* port, long baudRate);
     
     void response(byte *dataPtr,byte  dataLen);
-    void readData(byte *dataPtr);
+    byte getPayload(byte *dataPtr, byte SlaveID);
     byte query(byte slaveId,byte FunCode,byte *rcvPtr);
 
     byte *dataPtr;
 
     uint8_t _slaveId;
     byte payloadLength;
+
+     void _transmitBuffer(byte *ptr,byte size);
+     void _testRx();
+     void _printBuffer(byte *ptr,byte size);
   private:
     Stream *serialPort;
     uint8_t _dirPin;
@@ -38,8 +42,8 @@ class Serialbus
 
 
     void _clearBuffer();
-    void _printBuffer(byte *ptr,byte size);
-    void _transmitBuffer(byte *ptr,byte size);
+    
+   
 };
 
 template <typename T_port>
