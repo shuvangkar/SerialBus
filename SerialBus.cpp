@@ -86,7 +86,7 @@ void Serialbus::response(byte *dataPtr,byte  dataLen)
   buffer[0] = packetLen;
   buffer[1] = _slaveId;
   buffer[2] = _FunctionCode;
-  buffer[3] = 0;
+  buffer[3] = 0;              //Control bytes
   memcpy(buffer+4,dataPtr,dataLen);
   printBuffer(buffer,packetLen);
   this -> _transmitBuffer(buffer,packetLen);
@@ -154,7 +154,7 @@ byte  Serialbus::getPayload(byte *dataPtr, byte SlaveID)
 byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
 {
   //this -> _clearBuffer();
-  byte ctrlByte[5];
+  byte ctrlByte[5]; //query control byte is 5 bytes. 
   ctrlByte[0] = sizeof(ctrlByte);
   ctrlByte[1] = slaveId;
   ctrlByte[2] = FunCode;
