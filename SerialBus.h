@@ -19,7 +19,7 @@ class Serialbus
     template <typename T_port>
     void begin(T_port* port, long baudRate);
     
-    void response(byte *dataPtr,byte  dataLen);
+    void reply(void *payload,byte length);
     byte getPayload(byte *dataPtr, byte SlaveID);
 
 
@@ -27,7 +27,7 @@ class Serialbus
     byte query(byte slaveId,byte FunCode,byte *rcvPtr);
 
     void printbusBytes();
-    void printBuffer(byte *ptr,byte size);
+    void printBuffer(void *ptr,byte length);
 
     //byte *dataPtr;
     uint8_t _slaveId;
@@ -39,8 +39,8 @@ class Serialbus
     bool _bufReadOnce = false;
     byte _FunctionCode;
 
-    uint8_t availableBytes();
-    void _transmitBuffer(byte *ptr,byte size);
+    uint8_t _available();
+    void _transmitBuffer(void *ptr,byte length);
     void _testRx();
     void _clearBuffer();
     

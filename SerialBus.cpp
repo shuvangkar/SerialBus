@@ -25,17 +25,17 @@ Serialbus::Serialbus(Stream &port, uint8_t slaveId)
 
 void Serialbus::setDirectionPin(byte Pin)
 {
-  this ->_dirPin = Pin;
+  this -> _dirPin = Pin;
   pinMode(_dirPin,OUTPUT);
   receiveMode();
 }
 /*************Low Level  Methods************************/
-void Serialbus::_transmitBuffer(byte *ptr,byte size)
+void Serialbus::_transmitBuffer(void *ptr,byte length)
 {
   //High/low MAX485 pins for transmit
   sendMode();
   //digitalWrite(_dirPin,HIGH);
-  serialPort ->write(ptr,size);
+  serialPort ->write((byte*)ptr,length);
   receiveMode();
 }
 
@@ -46,7 +46,7 @@ void Serialbus::_testRx()
   printbusBytes();
 }
 
-uint8_t Serialbus::availableBytes()
+uint8_t Serialbus::_available()
 {
   byte length = serialPort -> peek();
   //debugPrint(F("peek : "));debugPrint(length);
@@ -78,41 +78,32 @@ void Serialbus::_clearBuffer()
 }
 
 /************************Common Methods***************************/
-void Serialbus::response(byte *dataPtr,byte  dataLen)
+void Serialbus::reply(void *payload,byte length)
 {
   debugPrint(F("Responding : "));debugPrintln(_FunctionCode);
-  uint8_t buffer[MAX_RX_BUFFER];
-  byte packetLen = dataLen+4;
-  buffer[0] = packetLen;
-  buffer[1] = _slaveId;
-  buffer[2] = _FunctionCode;
-  buffer[3] = 0;              //Control bytes
-  memcpy(buffer+4,dataPtr,dataLen);
-  printBuffer(buffer,packetLen);
-  this -> _transmitBuffer(buffer,packetLen);
-  this -> _clearBuffer();
-
-  // byte ctrlByte[4];
-  // ctrlByte[0] = dataLen+ sizeof(ctrlByte);
-  // ctrlByte[1] = _slaveId;
-  // ctrlByte[2] = _FunctionCode;
-  // ctrlByte[3] = 0;
-  // printBuffer(ctrlByte,sizeof(ctrlByte));
-  // this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
-  // printBuffer(dataPtr,dataLen);
-  // this -> _transmitBuffer(dataPtr,dataLen);
+  // uint8_t buffer[MAX_RX_BUFFER];
+  // byte packetLen = length+4;
+  // buffer[0] = packetLen;
+  // buffer[1] = _slaveId;
+  // buffer[2] = _FunctionCode;
+  // buffer[3] = 0;              //Control bytes
+  // memcpy(buffer+4,payload,length);
+  // printBuffer(buffer,packetLen);
+  // this -> _transmitBuffer(buffer,packetLen);
   // this -> _clearBuffer();
 
-/*
-  uint8_t buffer[MAX_RX_BUFFER];
-  buffer[0] = slaveId;
-  buffer[1] = _funCode;
-  buffer[2] = dataLen;// If calculate crc add 2 bytes more here
-  memcpy(buffer+3,dataPtr,dataLen);
-  printBuffer(buffer,dataLen+3);
-  this -> _transmitBuffer(buffer,dataLen+3);
-  this ->clearBuffer();//clear buffer for accidental byte ramaining
-  */
+  uint8_t payloadInfo[4];
+  payloadInfo[0] = sizeof(payloadInfo)+length;
+  payloadInfo[1] = _slaveId;
+  payloadInfo[2] = _FunctionCode; //_FunctionCode store the last received function code
+  payloadInfo[3] = 0;
+  _transmitBuffer(payloadInfo,sizeof(payloadInfo));
+  _transmitBuffer(payload,length);
+  // _slaveId = 0;
+  _FunctionCode = 0;
+  printBuffer(payload,length);
+  _clearBuffer();
+
 }
 
 byte  Serialbus::getPayload(byte *dataPtr, byte SlaveID)
@@ -167,7 +158,7 @@ byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
   byte rcvLen = 0;
   do
   {
-    rcvLen = this -> availableBytes();
+    rcvLen = this -> _available();
     //rcvLen = serialPort -> available();
     //debugPrint(F("Available : "));debugPrintln(rcvLen);
     if(rcvLen > 0)
@@ -187,7 +178,7 @@ byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
 /*******************Slave Methods******************************/
 uint8_t Serialbus::getFunctionCode()
 {
-  byte len =   this -> availableBytes();
+  byte len =   this -> _available();
   if(len>0)
   {
     //check if master inquires this slave
@@ -231,11 +222,11 @@ void Serialbus::printbusBytes()
     Serial.println();
   }
 }
-void Serialbus::printBuffer(byte *ptr,byte size)
+void Serialbus::printBuffer(void *ptr,byte length)
 {
-  for(byte i = 0; i<size; i++)
+  for(byte i = 0; i<length; i++)
   {
-    debugPrint(*(ptr+i));debugPrint(" ");
+    debugPrint(*(byte*)(ptr+i));debugPrint(" ");
   }
   debugPrintln();
 }
