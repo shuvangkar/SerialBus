@@ -10,21 +10,24 @@ typedef enum errorCode_t
   
 };
 
+typedef void (*funPtr_t)();
+
 class Serialbus
 {
   public:
-    Serialbus(Stream &port, uint8_t slaveId);
+    Serialbus(Stream &port, uint8_t slaveId = 0);
     void setDirectionPin(byte Pin);
+    void setDirFunctions(funPtr_t sendFun, funPtr_t recFun);
 
     template <typename T_port>
     void begin(T_port* port, long baudRate);
     
     void reply(void *payload,byte length);
-    byte getPayload(byte *dataPtr, byte SlaveID);
+    byte getPayload(void *dataPtr, byte SlaveID);
 
 
-    uint8_t getFunctionCode();
-    byte query(byte slaveId,byte FunCode,byte *rcvPtr);
+    uint8_t getOpcode();
+    byte query(byte slaveId,byte FunCode,void *rcvPtr);
 
     void printbusBytes();
     void printBuffer(void *ptr,byte length);
@@ -38,6 +41,9 @@ class Serialbus
     uint8_t _dirPin;
     bool _bufReadOnce = false;
     byte _FunctionCode;
+
+    funPtr_t _sendFun = NULL;
+    funPtr_t _recFun = NULL;
 
     uint8_t _available();
     void _transmitBuffer(void *ptr,byte length);

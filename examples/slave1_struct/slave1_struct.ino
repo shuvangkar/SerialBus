@@ -14,7 +14,15 @@ byte opcode;
 SoftwareSerial mySerial(RS485_RX, RS485_TX);
 Serialbus slave(mySerial, SLAVE_ID);
 
-byte dataArr[5];
+typedef struct sensor_t 
+{
+  int index;
+  float temp;
+  float humidity;
+};
+
+sensor_t sensor;
+
 void setup()
 {
   Serial.begin(9600);
@@ -43,11 +51,10 @@ void runSlaveSM(byte funCode)
       case 10:
         break;
       case 11:
-        populatePayload();
-        slave.reply(dataArr, sizeof(dataArr));
         break;
       case 12:
-        slave.reply(dataArr, sizeof(dataArr));
+          populatePayload();
+          slave.reply(&sensor, sizeof(sensor_t));
         break;
       default:
         break;
@@ -59,9 +66,12 @@ void runSlaveSM(byte funCode)
 
 void populatePayload()
 {
-  for (int i = 0; i < sizeof(dataArr); i++)
-  {
-    dataArr[i] = random(0, 30);
-  }
+  sensor.index = random(1,30);
+  sensor.temp = random(25,40);
+  sensor.humidity = random(50,70);
+
+  Serial.println(sensor.index);
+  Serial.println(sensor.temp);
+  Serial.println(sensor.humidity);
 }
 

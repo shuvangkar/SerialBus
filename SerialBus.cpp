@@ -29,14 +29,29 @@ void Serialbus::setDirectionPin(byte Pin)
   pinMode(_dirPin,OUTPUT);
   receiveMode();
 }
+
+void Serialbus::setDirFunctions(funPtr_t sendFun, funPtr_t recFun)
+{
+  _sendFun = sendFun;
+  _recFun = recFun;
+}
+
 /*************Low Level  Methods************************/
 void Serialbus::_transmitBuffer(void *ptr,byte length)
 {
   //High/low MAX485 pins for transmit
-  sendMode();
+  // sendMode();
+  if(_sendFun)
+  {
+    _sendFun();
+  }
   //digitalWrite(_dirPin,HIGH);
   serialPort ->write((byte*)ptr,length);
-  receiveMode();
+  if(_recFun)
+  {
+    _recFun();
+  }
+  // receiveMode();
 }
 
 void Serialbus::_testRx()
@@ -106,7 +121,7 @@ void Serialbus::reply(void *payload,byte length)
 
 }
 
-byte  Serialbus::getPayload(byte *dataPtr, byte SlaveID)
+byte  Serialbus::getPayload(void *dataPtr, byte SlaveID)
 {
   //Checksum here, then proceed to the 
 
@@ -126,9 +141,11 @@ byte  Serialbus::getPayload(byte *dataPtr, byte SlaveID)
   if(ctrlByte[1] == SlaveID)
   {
     byte  packetLen = ctrlByte[0] - 4;
+    byte *p = (byte*)dataPtr;
     for (byte i = 0; i < packetLen; ++i)
     {
-      *(dataPtr+i) = serialPort -> read();
+      // *(dataPtr+i) = (char)serialPort -> read();
+      p[i] = serialPort -> read();
     }
 
     return packetLen;
@@ -142,7 +159,7 @@ byte  Serialbus::getPayload(byte *dataPtr, byte SlaveID)
 
 /********************Master Device Methods***********************/
 
-byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
+byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
 {
   //this -> _clearBuffer();
   byte ctrlByte[5]; //query control byte is 5 bytes. 
@@ -154,7 +171,7 @@ byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
   //printBuffer(ctrlByte,sizeof(ctrlByte));
   this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
   debugPrint(F("Query Request ID : "));debugPrintln(slaveId);
-  uint16_t timeout = 5000;
+  long ms1 = millis();
   byte rcvLen = 0;
   do
   {
@@ -169,14 +186,14 @@ byte Serialbus::query(byte slaveId,byte FunCode,byte *rcvPtr)
       //return rcvLen;
      
     }
-    delay(1);
-  }while(--timeout && !rcvLen);
+    // delay(1);
+  }while((millis()-ms1<3000) && !rcvLen);
   this -> _clearBuffer();
   return rcvLen;
 }
 
 /*******************Slave Methods******************************/
-uint8_t Serialbus::getFunctionCode()
+uint8_t Serialbus::getOpcode()
 {
   byte len =   this -> _available();
   if(len>0)

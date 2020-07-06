@@ -8,8 +8,8 @@
 SoftwareSerial mySerial(RS485_RX, RS485_TX);
 Serialbus master(mySerial);
 
-byte dataArr[32];
-byte dataArr2[16];
+char str[64];
+char str2[64];
 void setup()
 {
   Serial.begin(9600);
@@ -22,10 +22,20 @@ void setup()
 void loop()
 {
   Serial.println("---------------------");
-  byte len = master.query(1,11,dataArr);
-  master.printBuffer(dataArr,len);
+  byte len = master.query(1,13,str);
+  Serial.println(str);
   delay(1000);
   Serial.println("---------------------");
-  master.query(2,11,dataArr2);
+  len = master.query(2,13,str2);
+  Serial.println(str2);
   delay(1000);
 }
+void printSensor()
+{
+  
+}
+void printSensor2()
+{
+  
+}
+

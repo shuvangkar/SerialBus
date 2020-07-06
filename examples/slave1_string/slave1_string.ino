@@ -14,12 +14,13 @@ byte opcode;
 SoftwareSerial mySerial(RS485_RX, RS485_TX);
 Serialbus slave(mySerial, SLAVE_ID);
 
-byte dataArr[5];
+char str[32];// = "Hello Arduino";
+
 void setup()
 {
   Serial.begin(9600);
   mySerial.begin(9600);
-//  slave.setDirectionPin(RS485_DIR);
+  //  slave.setDirectionPin(RS485_DIR);
   Serial.print(F("Own Addr: ")); Serial.println(slave._slaveId);
 }
 
@@ -37,17 +38,18 @@ void runSlaveSM(byte funCode)
   if (funCode > 0)
   {
     Serial.println("-------------------------");
-//    Serial.print(F("Function Code: ")); Serial.println(funCode);
+    //    Serial.print(F("Function Code: ")); Serial.println(funCode);
     switch (opcode)
     {
       case 10:
         break;
       case 11:
-        populatePayload();
-        slave.reply(dataArr, sizeof(dataArr));
         break;
       case 12:
-        slave.reply(dataArr, sizeof(dataArr));
+        break;
+      case 13:
+        popupateStr();
+        slave.reply(str, sizeof(str));
         break;
       default:
         break;
@@ -57,11 +59,15 @@ void runSlaveSM(byte funCode)
 
 }
 
-void populatePayload()
+void popupateStr()
 {
-  for (int i = 0; i < sizeof(dataArr); i++)
-  {
-    dataArr[i] = random(0, 30);
-  }
+  str[0] = '\0';
+  strcat(str,"<--Hello Arduino ");
+  char temp[10];
+  int val = random(1,500);
+  itoa(val,temp,10);
+  strcat(str, temp);
+  strcat(str,"--->");
+  Serial.println(str);
 }
 

@@ -8,8 +8,14 @@
 SoftwareSerial mySerial(RS485_RX, RS485_TX);
 Serialbus master(mySerial);
 
-byte dataArr[32];
-byte dataArr2[16];
+typedef struct sensor_t 
+{
+  int index;
+  float temp;
+  float humidity;
+};
+sensor_t sensor;
+sensor_t sensor2;
 void setup()
 {
   Serial.begin(9600);
@@ -22,10 +28,22 @@ void setup()
 void loop()
 {
   Serial.println("---------------------");
-  byte len = master.query(1,11,dataArr);
-  master.printBuffer(dataArr,len);
+  byte len = master.query(1,12,&sensor);
+  printSensor();
   delay(1000);
   Serial.println("---------------------");
-  master.query(2,11,dataArr2);
+  len = master.query(2,12,&sensor2);
+  printSensor2();
   delay(1000);
 }
+void printSensor()
+{
+  Serial.println(sensor.index);
+  Serial.println(sensor.temp);
+  Serial.println(sensor.humidity);
+}
+void printSensor2()
+{
+  
+}
+
