@@ -27,7 +27,8 @@ void Serialbus::setDirectionPin(byte Pin)
 {
   this -> _dirPin = Pin;
   pinMode(_dirPin,OUTPUT);
-  receiveMode();
+  _rcvMode();
+  // receiveMode();
 }
 
 void Serialbus::setDirFunctions(funPtr_t sendFun, funPtr_t recFun)
@@ -36,22 +37,44 @@ void Serialbus::setDirFunctions(funPtr_t sendFun, funPtr_t recFun)
   _recFun = recFun;
 }
 
+void Serialbus::_sendMode()
+{
+  Serial.println(F("<PIN_SEND_MODE>"));
+  digitalWrite(_dirPin,HIGH);
+}
+void Serialbus::_rcvMode()
+{
+  Serial.println(F("<PIN_RCV_MODE>"));
+  digitalWrite(_dirPin,LOW);
+}
 /*************Low Level  Methods************************/
 void Serialbus::_transmitBuffer(void *ptr,byte length)
 {
   //High/low MAX485 pins for transmit
-  // sendMode();
+  sendMode();
+
   if(_sendFun)
   {
+    Serial.println(F("<SEND_MODE>"));
     _sendFun();
   }
+  else
+  {
+    _sendMode();
+  }
+
   //digitalWrite(_dirPin,HIGH);
   serialPort ->write((byte*)ptr,length);
+
   if(_recFun)
   {
+    Serial.println(F("<RCV_MODE>"));
     _recFun();
   }
-  // receiveMode();
+  else
+  {
+    _rcvMode();
+  }
 }
 
 void Serialbus::_testRx()

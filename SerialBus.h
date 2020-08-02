@@ -49,6 +49,8 @@ class Serialbus
     void _transmitBuffer(void *ptr,byte length);
     void _testRx();
     void _clearBuffer();
+    void _sendMode();
+    void _rcvMode();
     
    
 };
