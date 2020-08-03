@@ -106,7 +106,6 @@ uint8_t Serialbus::_available()
   //debugPrint(F("peek : "));debugPrint(length);
   byte rcvBytes = serialPort ->available();
   
-
   if(rcvBytes>=length)
   {
     return length;
@@ -181,25 +180,21 @@ int Serialbus::_timed_read()
   return -1;
 }
 
-byte *Serialbus::_read_bytes(byte *buf)
-{
-  byte *p = buf;
-  int b = _timed_read();
-  while(b>=0)
-  {
-    *p = (byte)b;
-    p++;
-    b = _timed_read();
-  }
-  return buf;
-}
+// byte *Serialbus::_read_bytes(byte *buf)
+// {
+//   byte *p = buf;
+//   int b = _timed_read();
+//   while(b>=0)
+//   {
+//     *p = (byte)b;
+//     p++;
+//     b = _timed_read();
+//   }
+//   return buf;
+// }
 
 void Serialbus::_clearBuffer()
 {
-  //byte len = serialPort->available();
-  // _bufReadOnce = false;
-  // _FunctionCode = 0;
-  // payloadLength = 0;
   while (serialPort->available())
   {
     _timed_read();
@@ -213,16 +208,6 @@ void Serialbus::_clearBuffer()
 void Serialbus::reply(void *payload,byte length)
 {
   debugPrint(F("Responding : "));debugPrint(_slaveId);debugPrint('|');debugPrintln(_FunctionCode);
-  // uint8_t buffer[MAX_RX_BUFFER];
-  // byte packetLen = length+4;
-  // buffer[0] = packetLen;
-  // buffer[1] = _slaveId;
-  // buffer[2] = _FunctionCode;
-  // buffer[3] = 0;              //Control bytes
-  // memcpy(buffer+4,payload,length);
-  // printBuffer(buffer,packetLen);
-  // this -> _transmitBuffer(buffer,packetLen);
-  // this -> _clearBuffer();
 
   uint8_t payloadInfo[4];
   payloadInfo[0] = sizeof(payloadInfo)+length;
@@ -244,29 +229,12 @@ byte  Serialbus::getPayload(void *dataPtr, byte SlaveID)
 
   byte ctrlByte[4];
   byte temp;
-  // for(byte i = 0; i<4; i++)
-  // {
-    
-  //   // byte 0->Packet Length
-  //   // byte 1->Slave Address
-  //   // byte 2->Function Code
-  //   // byte 3-> Control Code
-    
-  //   ctrlByte[i] = serialPort -> read();
-  // }
   _readBuffer(ctrlByte, sizeof(ctrlByte));
 
   if(ctrlByte[1] == SlaveID)
   {
     //have to match opcode also
     byte  packetLen = ctrlByte[0] - 4;
-    
-    // byte *p = (byte*)dataPtr;
-    // for (byte i = 0; i < packetLen; ++i)
-    // {
-    //   // *(dataPtr+i) = (char)serialPort -> read();
-    //   p[i] = serialPort -> read();
-    // }
     _readBuffer((byte*)dataPtr,packetLen);
 
     return packetLen;
@@ -324,60 +292,6 @@ byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
   this -> _clearBuffer();
   return rcvLen;
 }
-
-/*******************Slave Methods******************************/
-
-
-// uint8_t Serialbus::getOpcode()
-// {
-//   // byte len = serialPort -> available();
-//   // if(len>0)
-//   // {
-//   //   byte Buf[5];
-//   //   _read_bytes(Buf);
-//   //   byte reqId = Buf[1];
-//   //   if(reqId == _slaveId)
-//   //   {
-//   //     debugPrintln(F("Address Matched"));
-//   //     _FunctionCode = Buf[2];
-//   //   }
-//   //   else
-//   //   {
-//   //     _FunctionCode = 0;
-//   //     debugPrintln(F("Address Not Matched"));
-//   //   }
-//   //   this ->_clearBuffer(); 
-//   // }
-//   // return _FunctionCode;
-
-
-
-
-//   // byte len =   this -> _available();
-//   byte len = serialPort -> available();
-//   byte opcode = 0;
-//   if(len >0)
-//   {
-//     Serial.print(F("Byte Received: ")); Serial.println(len);
-//     _timed_read();//length
-//     byte reqId = (byte)_timed_read();
-//     if(reqId == _slaveId)
-//     {
-//       debugPrintln(F("Address Matched"));
-//       opcode = (byte)_timed_read();
-//       _FunctionCode = opcode;
-//     }
-//     else
-//     {
-//       debugPrintln(F("Address Not Matched"));
-//       // this -> _FunctionCode = 0;
-//     }
-//     this ->_clearBuffer(); 
-//   }
-  
-//   return opcode;
-
-// }
 
 
 

@@ -47,7 +47,7 @@ class Serialbus
 
     long _start_millis = 0;
     int _timed_read();
-    byte *_read_bytes(byte *buf);
+    // byte *_read_bytes(byte *buf);
 
     int8_t _polling();
     uint8_t _available();
