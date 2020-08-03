@@ -51,7 +51,7 @@ void Serialbus::_rcvMode()
 void Serialbus::_transmitBuffer(void *ptr,byte length)
 {
   //High/low MAX485 pins for transmit
-  sendMode();
+  // sendMode();
 
   if(_sendFun)
   {
@@ -60,7 +60,8 @@ void Serialbus::_transmitBuffer(void *ptr,byte length)
   }
   else
   {
-    _sendMode();
+    digitalWrite(_dirPin,HIGH);
+    //_sendMode();
   }
 
   //digitalWrite(_dirPin,HIGH);
@@ -73,8 +74,19 @@ void Serialbus::_transmitBuffer(void *ptr,byte length)
   }
   else
   {
-    _rcvMode();
+    digitalWrite(_dirPin,LOW);
+    // _rcvMode();
   }
+}
+
+byte *Serialbus::_readBuffer(byte *buf, byte len)
+{
+  byte *ptr = buf;
+  for(byte i = 0; i<len ; i++)
+  {
+    ptr[i] = serialPort->read();
+  }
+  return buf;
 }
 
 void Serialbus::_testRx()
@@ -105,9 +117,9 @@ uint8_t Serialbus::_available()
 void Serialbus::_clearBuffer()
 {
   //byte len = serialPort->available();
-  _bufReadOnce = false;
-  _FunctionCode = 0;
-  payloadLength = 0;
+  // _bufReadOnce = false;
+  // _FunctionCode = 0;
+  // payloadLength = 0;
   while (serialPort->available())
   {
     serialPort->read();
@@ -150,26 +162,30 @@ byte  Serialbus::getPayload(void *dataPtr, byte SlaveID)
 
   byte ctrlByte[4];
   byte temp;
-  for(byte i = 0; i<4; i++)
-  {
-    /*
-    byte 0->Packet Length
-    byte 1->Slave Address
-    byte 2->Function Code
-    byte 3-> Control Code
-    */
-    ctrlByte[i] = serialPort -> read();
-  }
+  // for(byte i = 0; i<4; i++)
+  // {
+    
+  //   // byte 0->Packet Length
+  //   // byte 1->Slave Address
+  //   // byte 2->Function Code
+  //   // byte 3-> Control Code
+    
+  //   ctrlByte[i] = serialPort -> read();
+  // }
+  _readBuffer(ctrlByte, sizeof(ctrlByte));
 
   if(ctrlByte[1] == SlaveID)
   {
+    //have to match opcode also
     byte  packetLen = ctrlByte[0] - 4;
-    byte *p = (byte*)dataPtr;
-    for (byte i = 0; i < packetLen; ++i)
-    {
-      // *(dataPtr+i) = (char)serialPort -> read();
-      p[i] = serialPort -> read();
-    }
+    
+    // byte *p = (byte*)dataPtr;
+    // for (byte i = 0; i < packetLen; ++i)
+    // {
+    //   // *(dataPtr+i) = (char)serialPort -> read();
+    //   p[i] = serialPort -> read();
+    // }
+    _readBuffer((byte*)dataPtr,packetLen);
 
     return packetLen;
   }
@@ -205,12 +221,16 @@ byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
     {
       //debugPrint(F("Available : "));debugPrintln(rcvLen);
       rcvLen = getPayload(rcvPtr,slaveId);
+      if(rcvLen>0)
+      {
+        break;
+      }
       //this->printbusBytes();
-      //return rcvLen;
+      // return rcvLen;
      
     }
     // delay(1);
-  }while((millis()-ms1<3000) && !rcvLen);
+  }while((millis()-ms1<1000));
   this -> _clearBuffer();
   return rcvLen;
 }
@@ -219,31 +239,50 @@ byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
 uint8_t Serialbus::getOpcode()
 {
   byte len =   this -> _available();
-  if(len>0)
+  byte opcode = 0;
+  if(len >0)
   {
-    //check if master inquires this slave
-    if(_bufReadOnce == false)
+    serialPort -> read();//length
+    byte requestedId = serialPort ->read();
+    if(requestedId == _slaveId)
     {
-      byte packetLen = serialPort -> read();
-      byte id = serialPort ->read();
-      if(id == _slaveId)
-      {
-        debugPrintln(F("Address Matched"));
-        this -> _FunctionCode = serialPort ->read();
-        this->payloadLength = packetLen;
-        _bufReadOnce = true;
-      }
-      else
-      {
-        //This is not me. clear buffer
-        debugPrintln(F("Address Not Matched"));
-        this->payloadLength = 0;
-        this ->_clearBuffer();
-      }
+      debugPrintln(F("Address Matched"));
+      opcode = serialPort -> read();
+      _FunctionCode = opcode;
     }
-    
+    else
+    {
+      debugPrintln(F("Address Not Matched"));
+      // this -> _FunctionCode = 0;
+    }
+    this ->_clearBuffer(); 
   }
-  return _FunctionCode;
+  return opcode;
+  // if(len>0)
+  // {
+  //   //check if master inquires this slave
+  //   if(_bufReadOnce == false)
+  //   {
+  //     byte packetLen = serialPort -> read();
+  //     byte id = serialPort ->read();
+  //     if(id == _slaveId)
+  //     {
+  //       debugPrintln(F("Address Matched"));
+  //       this -> _FunctionCode = serialPort ->read();
+  //       this->payloadLength = packetLen;
+  //       _bufReadOnce = true;
+  //     }
+  //     else
+  //     {
+  //       //This is not me. clear buffer
+  //       debugPrintln(F("Address Not Matched"));
+  //       this->payloadLength = 0;
+  //       this ->_clearBuffer();
+  //     }
+  //   }
+    
+  // }
+  // return _FunctionCode;
 }
 
 

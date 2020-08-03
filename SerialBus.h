@@ -47,6 +47,7 @@ class Serialbus
 
     uint8_t _available();
     void _transmitBuffer(void *ptr,byte length);
+    byte *_readBuffer(byte *buf, byte len);
     void _testRx();
     void _clearBuffer();
     void _sendMode();
