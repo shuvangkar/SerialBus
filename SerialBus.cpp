@@ -27,55 +27,59 @@ void Serialbus::setDirectionPin(byte Pin)
 {
   this -> _dirPin = Pin;
   pinMode(_dirPin,OUTPUT);
-  _rcvMode();
+  digitalWrite(_dirPin,LOW); //Receive mode
+  // _rcvMode();
   // receiveMode();
 }
 
-void Serialbus::setDirFunctions(funPtr_t sendFun, funPtr_t recFun)
+void Serialbus::setDirFunctions(funPtr_t sendFun, funPtr_t rcvFun)
 {
   _sendFun = sendFun;
-  _recFun = recFun;
+  _rcvFun = rcvFun;
+  _rcvFun();
 }
 
-void Serialbus::_sendMode()
-{
-  Serial.println(F("<PIN_SEND_MODE>"));
-  digitalWrite(_dirPin,HIGH);
-}
-void Serialbus::_rcvMode()
-{
-  Serial.println(F("<PIN_RCV_MODE>"));
-  digitalWrite(_dirPin,LOW);
-}
+// void Serialbus::_sendMode()
+// {
+//   Serial.println(F("<PIN_SEND_MODE>"));
+//   digitalWrite(_dirPin,HIGH);
+// }
+// void Serialbus::_rcvMode()
+// {
+//   Serial.println(F("<PIN_RCV_MODE>"));
+//   digitalWrite(_dirPin,LOW);
+// }
 /*************Low Level  Methods************************/
 void Serialbus::_transmitBuffer(void *ptr,byte length)
 {
-  //High/low MAX485 pins for transmit
-  // sendMode();
-
   if(_sendFun)
   {
-    Serial.println(F("<SEND_MODE>"));
+    // Serial.println(F("<SEND_MODE>"));
     _sendFun();
   }
   else
   {
-    digitalWrite(_dirPin,HIGH);
-    //_sendMode();
+    if(_dirPin !=255)
+    {
+      // Serial.println(F("<PIN_SEND_MODE>"));
+      digitalWrite(_dirPin,HIGH);
+    }
   }
 
-  //digitalWrite(_dirPin,HIGH);
   serialPort ->write((byte*)ptr,length);
 
-  if(_recFun)
+  if(_rcvFun)
   {
-    Serial.println(F("<RCV_MODE>"));
-    _recFun();
+    // Serial.println(F("<RCV_MODE>"));
+    _rcvFun();
   }
   else
   {
-    digitalWrite(_dirPin,LOW);
-    // _rcvMode();
+    if(_dirPin !=255)
+    {
+      // Serial.println(F("<PIN_RCV_MODE>"));
+      digitalWrite(_dirPin,LOW);
+    }
   }
 }
 
@@ -101,7 +105,8 @@ uint8_t Serialbus::_available()
   byte length = serialPort -> peek();
   //debugPrint(F("peek : "));debugPrint(length);
   byte rcvBytes = serialPort ->available();
-  //debugPrint(F(" | Actual : "));debugPrintln(rcvBytes);
+  
+
   if(rcvBytes>=length)
   {
     return length;
@@ -110,9 +115,84 @@ uint8_t Serialbus::_available()
   {
     return 0; 
   }
-  //return length;
 }
 
+int8_t Serialbus::_polling()
+{
+  if(serialPort -> available())
+  {
+    byte len = serialPort -> read();
+    // Serial.print(F("Len:"));Serial.println(len);
+    if(len == 5)
+    {
+      return 1;
+      //printbusBytes();
+    }
+    else
+    {
+      _clearBuffer();
+      // return 0;
+    }
+  }
+  return 0;
+}
+
+uint8_t Serialbus::getOpcode()
+{
+  if(_polling()>0)
+  {
+    // printbusBytes();
+    byte buf[4];
+    for(byte i = 0; i< 4; i++)
+    {
+      buf[i] = _timed_read();
+    }
+
+    // printBuffer(buf,sizeof(buf));
+    _clearBuffer();
+    if(buf[0] == _slaveId)
+    {
+      Serial.println(F("Match"));
+      _FunctionCode = buf[1];
+      return buf[1];
+    }
+    else
+    {
+      Serial.println(F("Not Match"));
+    }
+  }
+  return 0;
+}
+
+int Serialbus::_timed_read()
+{
+  int c;
+  _start_millis = millis();
+  long current_millis;
+  do
+  {
+    c = serialPort -> read();
+    if (c > 0 )
+    {
+      return c;
+    }
+    current_millis = millis();
+  } while ((current_millis - _start_millis) < 10);
+  return -1;
+}
+
+byte *Serialbus::_read_bytes(byte *buf)
+{
+  byte *p = buf;
+  int b = _timed_read();
+  while(b>=0)
+  {
+    *p = (byte)b;
+    p++;
+    b = _timed_read();
+  }
+  return buf;
+}
 
 void Serialbus::_clearBuffer()
 {
@@ -122,15 +202,17 @@ void Serialbus::_clearBuffer()
   // payloadLength = 0;
   while (serialPort->available())
   {
-    serialPort->read();
+    _timed_read();
+    // serialPort->read();
   }
-  debugPrintln(F("buffer Cleared"));
+  // debugPrintln(F("buffer Cleared"));
+  // debugPrintln(F("<>"));
 }
 
 /************************Common Methods***************************/
 void Serialbus::reply(void *payload,byte length)
 {
-  debugPrint(F("Responding : "));debugPrintln(_FunctionCode);
+  debugPrint(F("Responding : "));debugPrint(_slaveId);debugPrint('|');debugPrintln(_FunctionCode);
   // uint8_t buffer[MAX_RX_BUFFER];
   // byte packetLen = length+4;
   // buffer[0] = packetLen;
@@ -201,12 +283,20 @@ byte  Serialbus::getPayload(void *dataPtr, byte SlaveID)
 byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
 {
   //this -> _clearBuffer();
-  byte ctrlByte[5]; //query control byte is 5 bytes. 
+  byte ctrlByte[5]; //query control byte is 5 bytes.
+
+  // ctrlByte[0] = slaveId;
+  // ctrlByte[1] = sizeof(ctrlByte);
+  // ctrlByte[2] = FunCode;
+  // ctrlByte[3] = 0;
+  // ctrlByte[4] = 0; 
+
   ctrlByte[0] = sizeof(ctrlByte);
   ctrlByte[1] = slaveId;
   ctrlByte[2] = FunCode;
   ctrlByte[3] = 0;
   ctrlByte[4] = 0; //Control bytes
+
   //printBuffer(ctrlByte,sizeof(ctrlByte));
   this -> _transmitBuffer(ctrlByte,sizeof(ctrlByte));
   debugPrint(F("Query Request ID : "));debugPrintln(slaveId);
@@ -236,28 +326,94 @@ byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
 }
 
 /*******************Slave Methods******************************/
-uint8_t Serialbus::getOpcode()
+
+
+// uint8_t Serialbus::getOpcode()
+// {
+//   // byte len = serialPort -> available();
+//   // if(len>0)
+//   // {
+//   //   byte Buf[5];
+//   //   _read_bytes(Buf);
+//   //   byte reqId = Buf[1];
+//   //   if(reqId == _slaveId)
+//   //   {
+//   //     debugPrintln(F("Address Matched"));
+//   //     _FunctionCode = Buf[2];
+//   //   }
+//   //   else
+//   //   {
+//   //     _FunctionCode = 0;
+//   //     debugPrintln(F("Address Not Matched"));
+//   //   }
+//   //   this ->_clearBuffer(); 
+//   // }
+//   // return _FunctionCode;
+
+
+
+
+//   // byte len =   this -> _available();
+//   byte len = serialPort -> available();
+//   byte opcode = 0;
+//   if(len >0)
+//   {
+//     Serial.print(F("Byte Received: ")); Serial.println(len);
+//     _timed_read();//length
+//     byte reqId = (byte)_timed_read();
+//     if(reqId == _slaveId)
+//     {
+//       debugPrintln(F("Address Matched"));
+//       opcode = (byte)_timed_read();
+//       _FunctionCode = opcode;
+//     }
+//     else
+//     {
+//       debugPrintln(F("Address Not Matched"));
+//       // this -> _FunctionCode = 0;
+//     }
+//     this ->_clearBuffer(); 
+//   }
+  
+//   return opcode;
+
+// }
+
+
+
+/**********************Debug Methods******************/
+void Serialbus::printbusBytes()
 {
-  byte len =   this -> _available();
-  byte opcode = 0;
-  if(len >0)
+  // byte len = serialPort->available();
+  // if (len > 0)
+  // {
+  //   for (byte i = 0; i < len; i++)
+  //   {
+  //     // byte data = serialPort->read();
+  //     byte data = (byte)_timed_read();
+  //     Serial.print(data); Serial.print("  ");
+  //   }
+  //   Serial.println();
+  // }
+  while(serialPort->available())
   {
-    serialPort -> read();//length
-    byte requestedId = serialPort ->read();
-    if(requestedId == _slaveId)
-    {
-      debugPrintln(F("Address Matched"));
-      opcode = serialPort -> read();
-      _FunctionCode = opcode;
-    }
-    else
-    {
-      debugPrintln(F("Address Not Matched"));
-      // this -> _FunctionCode = 0;
-    }
-    this ->_clearBuffer(); 
+    byte data = (byte)_timed_read();
+    Serial.print(data); Serial.print("  ");
   }
-  return opcode;
+  Serial.println();
+}
+void Serialbus::printBuffer(void *ptr,byte length)
+{
+  for(byte i = 0; i<length; i++)
+  {
+    debugPrint(*(byte*)(ptr+i));debugPrint(" ");
+  }
+  debugPrintln();
+}
+
+
+
+
   // if(len>0)
   // {
   //   //check if master inquires this slave
@@ -283,30 +439,3 @@ uint8_t Serialbus::getOpcode()
     
   // }
   // return _FunctionCode;
-}
-
-
-
-/**********************Debug Methods******************/
-void Serialbus::printbusBytes()
-{
-  byte len = serialPort->available();
-  if (len > 0)
-  {
-    for (byte i = 0; i < len; i++)
-    {
-      byte data = serialPort->read();
-      Serial.print(data); Serial.print("  ");
-    }
-    Serial.println();
-  }
-}
-void Serialbus::printBuffer(void *ptr,byte length)
-{
-  for(byte i = 0; i<length; i++)
-  {
-    debugPrint(*(byte*)(ptr+i));debugPrint(" ");
-  }
-  debugPrintln();
-}
-

@@ -17,7 +17,7 @@ class Serialbus
   public:
     Serialbus(Stream &port, uint8_t slaveId = 0);
     void setDirectionPin(byte Pin);
-    void setDirFunctions(funPtr_t sendFun, funPtr_t recFun);
+    void setDirFunctions(funPtr_t sendFun, funPtr_t rcvFun);
 
     template <typename T_port>
     void begin(T_port* port, long baudRate);
@@ -34,24 +34,29 @@ class Serialbus
 
     //byte *dataPtr;
     uint8_t _slaveId;
-    byte payloadLength;
+    // byte payloadLength;
   private:
     Stream *serialPort;
    
-    uint8_t _dirPin;
-    bool _bufReadOnce = false;
+    uint8_t _dirPin = 255;//means no pin assigned
+    // bool _bufReadOnce = false;
     byte _FunctionCode;
 
     funPtr_t _sendFun = NULL;
-    funPtr_t _recFun = NULL;
+    funPtr_t _rcvFun = NULL;
 
+    long _start_millis = 0;
+    int _timed_read();
+    byte *_read_bytes(byte *buf);
+
+    int8_t _polling();
     uint8_t _available();
     void _transmitBuffer(void *ptr,byte length);
     byte *_readBuffer(byte *buf, byte len);
     void _testRx();
     void _clearBuffer();
-    void _sendMode();
-    void _rcvMode();
+    // void _sendMode();
+    // void _rcvMode();
     
    
 };
