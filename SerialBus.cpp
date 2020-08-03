@@ -384,17 +384,6 @@ byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
 /**********************Debug Methods******************/
 void Serialbus::printbusBytes()
 {
-  // byte len = serialPort->available();
-  // if (len > 0)
-  // {
-  //   for (byte i = 0; i < len; i++)
-  //   {
-  //     // byte data = serialPort->read();
-  //     byte data = (byte)_timed_read();
-  //     Serial.print(data); Serial.print("  ");
-  //   }
-  //   Serial.println();
-  // }
   while(serialPort->available())
   {
     byte data = (byte)_timed_read();
