@@ -274,7 +274,7 @@ byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
   {
     rcvLen = this -> _available();
     //rcvLen = serialPort -> available();
-    //debugPrint(F("Available : "));debugPrintln(rcvLen);
+    // debugPrint(F("Available : "));debugPrintln(rcvLen);
     if(rcvLen > 0)
     {
       //debugPrint(F("Available : "));debugPrintln(rcvLen);
@@ -288,7 +288,7 @@ byte Serialbus::query(byte slaveId,byte FunCode,void *rcvPtr)
      
     }
     // delay(1);
-  }while((millis()-ms1<1000));
+  }while((millis()-ms1<3000));
   this -> _clearBuffer();
   return rcvLen;
 }
